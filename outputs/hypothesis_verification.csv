@@ -1,0 +1,5 @@
+Hypothesis,Test_Feature,ARM_Item,Context,Subgroup_N,Pop_mean_SHAP,Subgroup_mean_SHAP,Relative_increase,Confirmed_50pct,Confirmed_30pct,Is_Behavioral
+H1,BMI,BMI_cat_SeverelyObese,"['AnyHealthcare_1', 'CholCheck_1', 'HighBP_1']",26106,-0.40169,-0.26083,0.3507,False,True,False
+H2,DiffWalk,DiffWalk_1,"['CholCheck_1', 'HighChol_1', 'HighBP_1']",16278,-0.01256,-0.00405,0.6775,True,True,False
+H3,HighChol,HighChol_1,"['AnyHealthcare_1', 'CholCheck_1', 'GenHlth_cat_Fair']",51830,-0.07333,-0.06369,0.1315,False,False,False
+H4,GenHlth,GenHlth_cat_Fair,"['AnyHealthcare_1', 'CholCheck_1', 'HighBP_1']",26106,-0.36807,-0.09779,0.7343,True,True,False

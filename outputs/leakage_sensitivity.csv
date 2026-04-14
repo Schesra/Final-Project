@@ -1,0 +1,4 @@
+Model,Recall,Macro_F1,AUC_ROC,MCC
+Variant_A_full,0.8138,0.7303,0.8481,0.4958
+Variant_B_no_leakage,0.8066,0.7038,0.8247,0.4532
+Variant_C_behavioral_only,0.8375,0.6118,0.7594,0.3395

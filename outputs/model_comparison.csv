@@ -1,0 +1,7 @@
+Model,Recall,Macro_F1,AUC_ROC,MCC
+LogisticRegression,0.7458,0.6941,0.807,0.4189
+DecisionTree,0.7925,0.7839,0.8215,0.578
+XGBoost_tuned,0.8138,0.7303,0.8481,0.4958
+LightGBM_tuned,0.6133,0.7109,0.8141,0.4228
+RandomForest_tuned,0.7,0.7171,0.8235,0.4454
+SoftVoting,0.7328,0.7336,0.8441,0.4801
