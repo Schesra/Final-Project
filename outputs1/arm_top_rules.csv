@@ -1,0 +1,21 @@
+antecedents,support,confidence,lift,has_behavioral,confidence_gap
+"CholCheck_1, DiffWalk_1, HighBP_1, HighChol_1",0.0628,0.6095,2.1943,False,0.332
+"AnyHealthcare_1, DiffWalk_1, HighBP_1, HighChol_1",0.0607,0.609,2.1924,False,0.331
+"DiffWalk_1, HighBP_1, HighChol_1",0.0632,0.6076,2.1876,False,0.33
+"AnyHealthcare_1, BMI_cat_SeverelyObese, CholCheck_1, HighBP_1",0.0533,0.5899,2.1238,True,0.312
+"BMI_cat_SeverelyObese, CholCheck_1, HighBP_1",0.0558,0.5878,2.1161,True,0.31
+"AnyHealthcare_1, BMI_cat_SeverelyObese, HighBP_1",0.0536,0.5875,2.1152,True,0.31
+"BMI_cat_SeverelyObese, HighBP_1",0.0561,0.5846,2.1048,True,0.307
+"AnyHealthcare_1, CholCheck_1, GenHlth_cat_Fair, HighChol_1",0.0511,0.5728,2.0623,False,0.295
+"CholCheck_1, GenHlth_cat_Fair, HighChol_1",0.0536,0.5698,2.0516,False,0.292
+"AnyHealthcare_1, GenHlth_cat_Fair, HighChol_1",0.0514,0.5696,2.0505,False,0.292
+"AnyHealthcare_1, CholCheck_1, GenHlth_cat_Fair, HighBP_1",0.0577,0.5691,2.049,False,0.291
+"AnyHealthcare_1, GenHlth_cat_Fair, HighBP_1",0.058,0.5663,2.0387,False,0.288
+"GenHlth_cat_Fair, HighChol_1",0.0539,0.566,2.0379,False,0.288
+"CholCheck_1, GenHlth_cat_Fair, HighBP_1",0.0603,0.5657,2.0368,False,0.288
+"AnyHealthcare_1, CholCheck_1, DiffWalk_1, HighChol_1",0.0701,0.565,2.0343,False,0.287
+"CholCheck_1, DiffWalk_1, HighChol_1",0.073,0.5647,2.0332,False,0.287
+"AnyHealthcare_1, DiffWalk_1, HighChol_1",0.0704,0.5627,2.026,False,0.285
+"GenHlth_cat_Fair, HighBP_1",0.0607,0.5623,2.0242,False,0.284
+"DiffWalk_1, HighChol_1",0.0734,0.5617,2.0224,False,0.284
+"AnyHealthcare_1, CholCheck_1, DiffWalk_1, HighBP_1",0.0801,0.5594,2.0141,False,0.282
