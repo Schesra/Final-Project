@@ -31,6 +31,39 @@ DATA PREPARATION → ARM (FP-Growth) → ENSEMBLE CLASSIFICATION → SHAP VERIFI
 
 ---
 
+### Tổng quan quy trình Data Preparation
+
+> "Trước khi chạy bất kỳ cell nào, tôi sẽ mô tả toàn bộ quy trình data preparation chúng tôi đã thực hiện — 6 bước theo thứ tự, mỗi bước giải quyết một vấn đề cụ thể của dataset này."
+
+**Quy trình 6 bước:**
+
+```
+[1] Load & Inspect     → phát hiện 3 class, imbalance 72:28, BMI max=98
+        ↓
+[2] Binarize Target    → merge class 1+2 thành At-Risk (empirically justified)
+        ↓
+[3] BMI Outlier        → IQR capping tại 42.5 (giữ 11,280 records thay vì xóa)
+        ↓
+[4] Normalize          → MinMaxScaler fit trên train only (tránh leakage)
+        ↓
+[5] Discretize for ARM → bins theo WHO/BRFSS thresholds (domain-driven)
+        ↓
+[6] Split & Balance    → 80/20 stratified split + SMOTE-aware CV
+```
+
+> "Điểm quan trọng: bước 4 và 5 tạo ra HAI phiên bản data khác nhau từ cùng một nguồn. Scaled data (bước 4) dùng cho classification. Unscaled + discretized data (bước 5) dùng cho ARM. Lý do: ARM cần original values để discretize theo clinical thresholds — nếu dùng scaled values, bins sẽ không còn ý nghĩa lâm sàng."
+
+**Kết quả sau toàn bộ Phase 1:**
+
+| Output | Dùng cho | Kích thước |
+|--------|----------|-----------|
+| `df_A_scaled` | Classification (Phase 3) | 269,131 × 21 features |
+| `df_arm` (discretized) | ARM transaction matrix (Phase 2) | 269,131 × 29 columns |
+| `X_train / X_test` | Model training/evaluation | 215,304 / 53,827 records |
+| `X_tr_bal / y_tr_bal` | SMOTE-balanced training | 311,002 records |
+
+---
+
 ## CELL 2 — Setup & Install
 
 ```python
@@ -55,12 +88,12 @@ df_raw = pd.read_csv(DATA_PATH)
 ```
 Loaded: (269131, 22)
 Target distribution (raw):
-0.0    194377   ← No Risk
-1.0     39657   ← Pre-diabetes
-2.0     35097   ← Diabetes
+0.0    194377   ← No Risk       (72.22%)
+1.0     39657   ← Pre-diabetes  (14.73%)
+2.0     35097   ← Diabetes      (13.04%)
 ```
 
-> "Dataset có 269,131 records và 22 columns — 21 features + 1 target. Target có 3 class: 0 = No Risk, 1 = Pre-diabetes, 2 = Diabetes. Tổng At-Risk (class 1+2) = 74,754 records = 27.78% — đây là class imbalance cần xử lý. Đây là BRFSS 2015 — Behavioral Risk Factor Surveillance System của U.S. CDC, thu thập qua telephone survey."
+> "Chúng tôi load BRFSS 2015 dataset — 269,131 records, 22 columns. Bước đầu tiên là inspect target distribution. Phát hiện ngay 3 vấn đề: (1) target có 3 class thay vì 2 — cần quyết định có merge không; (2) imbalance rõ ràng: 72% No-Risk vs 28% At-Risk; (3) class 1 và class 2 có tỷ lệ gần nhau (14.73% vs 13.04%) — gợi ý chúng có thể giống nhau về profile. Bước tiếp theo kiểm tra điều này."
 
 ---
 
@@ -81,7 +114,7 @@ Diabetes:     BMI=31.96, HighBP=75.2%, PhysActivity=62.9%
 No Risk:      BMI=28.10, HighBP=40.1%, PhysActivity=75.2%
 ```
 
-> "Tại sao merge class 1 và 2? Nhìn vào profile: Pre-diabetes (BMI=31.83, HighBP=73.8%) và Diabetes (BMI=31.96, HighBP=75.2%) gần như giống hệt nhau. Trong khi No-Risk hoàn toàn khác (BMI=28.10, HighBP=40.1%). Đây là empirical justification — không phải quyết định tùy tiện. Về mặt lâm sàng: cả pre-diabetes lẫn diabetes đều cần can thiệp phòng ngừa."
+> "Chúng tôi so sánh profile của 3 class trên 3 features đại diện. Kết quả: Pre-diabetes và Diabetes gần như giống hệt nhau — BMI chênh 0.13, HighBP chênh 1.4%, PhysActivity chênh 0.5%. Trong khi No-Risk khác hoàn toàn — BMI thấp hơn 3.7 đơn vị, HighBP thấp hơn 33.7%, PhysActivity cao hơn 11.8%. Dựa trên kết quả này, chúng tôi merge class 1 và 2 thành At-Risk. Sau binarization: 72.22% No-Risk vs 27.78% At-Risk — imbalance ratio 2.6:1."
 
 ---
 
@@ -103,7 +136,7 @@ IQR Cap threshold: 42.50 (affects 11280 records)
 Strategy B removed: 993 records
 ```
 
-> "BMI max = 98 — rõ ràng là data entry error. Chúng tôi thử 2 chiến lược: Strategy A (IQR capping tại 42.5) ảnh hưởng 11,280 records nhưng giữ lại tất cả. Strategy B (remove BMI > 60) chỉ loại 993 records nhưng mất data. Chọn Strategy A vì: giữ được nhiều data hơn, capping là conservative hơn deletion, và BMI 42.5 vẫn là 'Severely Obese' — clinically meaningful threshold."
+> "Inspect BMI phát hiện max = 98 — không thể tồn tại về mặt sinh học, rõ ràng là data entry error. Chúng tôi thử nghiệm 2 chiến lược xử lý và so sánh: Strategy A dùng IQR capping — tính Q1, Q3, IQR rồi cap tại Q3 + 1.5×IQR = 42.5. Kết quả: 11,280 records bị cap nhưng không mất record nào. Strategy B remove trực tiếp BMI > 60 — chỉ loại 993 records nhưng mất data. Chúng tôi chọn Strategy A vì giữ được toàn bộ 269,131 records. BMI 42.5 vẫn là 'Severely Obese' — threshold có ý nghĩa lâm sàng."
 
 ---
 
@@ -124,7 +157,7 @@ min  0.0       0.0       0.0      0.0  0.0        0.0     0.0
 max  1.0       1.0       1.0      1.0  1.0        1.0     1.0
 ```
 
-> "Phân biệt rõ 2 loại features: 14 binary features (0/1) không cần scale, 7 continuous/ordinal features cần MinMaxScaler về [0,1]. Điểm kỹ thuật quan trọng: scaler được FIT CHỈ TRÊN TRAINING DATA rồi mới transform test data. Nếu fit trên toàn bộ dataset, thông tin từ test set sẽ leak vào training — đây là data leakage cơ bản nhất. Kết quả min=0.0, max=1.0 xác nhận scaling đúng."
+> "Chúng tôi chia 21 features thành 2 nhóm: 14 binary features (0/1) không cần scale vì đã ở đúng range. 7 continuous/ordinal features có range khác nhau — BMI: 10–42, Age: 1–13, MentHlth: 0–30 — cần đưa về [0,1] bằng MinMaxScaler. Scaler được fit chỉ trên X_train, sau đó transform cả train lẫn test. Kết quả min=0.0, max=1.0 xác nhận scaling đúng. Lưu ý: ARM dùng df_A chưa scale — giữ original values để discretize theo clinical thresholds."
 
 ---
 
@@ -141,6 +174,10 @@ df_arm['Age_cat'] = pd.cut(df_arm['Age'],
 
 df_arm['GenHlth_cat'] = df_arm['GenHlth'].map(
     {1:'Excellent', 2:'VeryGood', 3:'Good', 4:'Fair', 5:'Poor'})
+
+df_arm['MentHlth_cat'] = pd.cut(df_arm['MentHlth'],
+    bins=[0, 1, 14, 31],
+    labels=['None','Moderate','High'])
 ```
 
 **Output:**
@@ -149,7 +186,7 @@ ARM dataset shape: (269131, 29)
 Missing values: 0
 ```
 
-> "ARM yêu cầu dữ liệu categorical — không thể dùng BMI=28.5 trong transaction, phải là 'Overweight'. Bins BMI theo WHO clinical thresholds (18.5/25/30/35) — không phải arbitrary. Age theo BRFSS codebook: codes 1-4 = 18-44 (YoungAdult), 5-9 = 45-64 (MiddleAged), 10-13 = 65+ (Senior). GenHlth map trực tiếp theo BRFSS scale. MentHlth/PhysHlth: 0 days = None, 1-13 = Moderate, 14-30 = High. 0 missing values là bắt buộc vì FP-Growth không xử lý được NaN."
+> "Chúng tôi discretize 7 continuous/ordinal features thành categorical để dùng trong ARM. BMI được chia theo WHO clinical thresholds (18.5/25/30/35) thành 5 categories. Age được chia theo BRFSS codebook thành 3 nhóm: codes 1-4 = YoungAdult (18-44), 5-9 = MiddleAged (45-64), 10-13 = Senior (65+). GenHlth được map trực tiếp từ BRFSS 5-point scale. MentHlth và PhysHlth được chia thành None/Moderate/High dựa trên số ngày trong 30 ngày qua. Income và Education được chia thành 3 mức Low/Mid/High. Kết quả: 29 columns, 0 missing values — sẵn sàng cho FP-Growth."
 
 ---
 
@@ -179,11 +216,15 @@ class_weight: mean macro F1 = 0.6918
 Best balancing strategy: SMOTE
 ```
 
-> "80/20 split với stratify=y — đảm bảo tỷ lệ class giống nhau trong train và test. Test set (53,827 records) được held-out hoàn toàn, không dùng trong bất kỳ bước training nào."
+> "80/20 split với stratify=y — đảm bảo tỷ lệ class giống nhau trong train và test (27.78% At-Risk ở cả hai). Test set (53,827 records) được held-out hoàn toàn, không dùng trong bất kỳ bước training nào."
 
-> "SMOTE thắng NearMiss vì NearMiss undersample majority class — mất 155,501 - 59,803 = ~95,000 records. Với dataset lớn như BRFSS, mất data là costly. SMOTE và class_weight gần bằng nhau (0.6919 vs 0.6918), nhưng SMOTE cho recall cao hơn trên minority class — quan trọng hơn trong bài toán y tế vì false negative (bỏ sót bệnh nhân) nguy hiểm hơn false positive."
+> "Chúng tôi split 80/20 với stratify=y — đảm bảo tỷ lệ 27.78% At-Risk giống nhau trong cả train lẫn test. Train: 215,304 records, Test: 53,827 records — held-out hoàn toàn."
 
-> "Kỹ thuật quan trọng: SMOTE được apply BÊN TRONG mỗi fold CV, không phải trước khi split. Nếu apply trước, synthetic samples tạo từ toàn bộ dataset có thể 'leak' thông tin từ validation fold vào training fold, làm inflate performance metrics — đây là SMOTE leakage, một lỗi phổ biến trong literature."
+> "Sau đó chúng tôi thực hiện experiment so sánh 3 chiến lược xử lý imbalance bằng 5-fold CV trên training set: SMOTE tạo synthetic minority samples bằng interpolation giữa nearest neighbors — macro F1 = 0.6919. NearMiss undersample majority class — macro F1 = 0.5899, kém nhất vì mất ~95,000 records. class_weight điều chỉnh loss function — macro F1 = 0.6918. SMOTE được chọn. Sau SMOTE: training set tăng từ 215,304 lên 311,002 records (155,501 No-Risk + 155,501 At-Risk)."
+
+> "Điểm kỹ thuật: SMOTE được apply bên trong mỗi fold CV, không phải trước khi split. Nếu apply trước, synthetic samples tạo từ toàn bộ dataset có thể leak thông tin từ validation fold vào training — làm inflate metrics. Đây là SMOTE leakage, một lỗi phổ biến trong literature mà chúng tôi tránh được."
+
+> "Tóm tắt Phase 1: từ 269,131 raw records với 3 class, mixed feature types, outliers, và imbalance — chúng tôi tạo ra hai output: scaled data cho classification và discretized data cho ARM. Mỗi bước đều có kết quả đo lường cụ thể."
 
 ---
 ---
